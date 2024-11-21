@@ -6,6 +6,8 @@
 - `list-users`
 - `list-computers`
 - `list-groups`
+- `list-enabled-users`
+- `list-enabled-computers`
 - `describe-user`
 - `describe-computer`
 - `describe-group`

@@ -8,16 +8,18 @@ from core.bloodhound import *
 
 BANNER = '''\
 shihtzu [command] [term]?
-    list-users           [filter-term]?          list all Active Directory users
-    list-computers       [filter-term]?          list all Active Directory computers
-    list-groups          [filter-term]?          list all Active Directory groups
-    describe-user        [search-term]           show information on the first user matching [search-term]
-    describe-computer    [search-term]           show information on the first computer matching [search-term]
-    describe-group       [search-term]           show information on the first group matching [search-term]
-    list-user-groups     [user-search-term]      list group memberships of the first user matching [user-search-term]
-    list-computer-groups [computer-search-term]  list group memberships of the first computer matching [computer-search-term]
-    list-group-members   [group-search-term]     list all members of the first group matching [group-search-term]
-    list-kerberoastable  [filter-term]?          list all domain users with SPNs set
+    list-users             [filter-term]?          list all Active Directory users
+    list-computers         [filter-term]?          list all Active Directory computers
+    list-groups            [filter-term]?          list all Active Directory groups
+    list-enabled-users     [filter-term]?          list all enabled Active Directory users
+    list-enabled-computers [filter-term]?          list all enabled Active Directory computers
+    describe-user          [search-term]           show information on the first user matching [search-term]
+    describe-computer      [search-term]           show information on the first computer matching [search-term]
+    describe-group         [search-term]           show information on the first group matching [search-term]
+    list-user-groups       [user-search-term]      list group memberships of the first user matching [user-search-term]
+    list-computer-groups   [computer-search-term]  list group memberships of the first computer matching [computer-search-term]
+    list-group-members     [group-search-term]     list all members of the first group matching [group-search-term]
+    list-kerberoastable    [filter-term]?          list all domain users with SPNs set
 
     - For convenience, search terms match object ids, samaccountnames, descriptions, SPNs, etc.
     - Listing prints `samaccountname`; if it's empty, it’s object ID will be printed instead.
@@ -73,6 +75,48 @@ def main():
         for g in DomainGroup.load_files():
             if search_term in g.search_string:
                 print(g.sam_account_name if g.sam_account_name else g.object_id)
+
+        sys.exit(0)
+
+    if sys.argv[1] == 'list-enabled-users':
+        if len(sys.argv) == 2:
+            for u in DomainUser.load_files():
+                if not u.enabled:
+                    continue
+
+                print(u.sam_account_name if u.sam_account_name else u.object_id)
+
+            sys.exit(0)
+
+        search_term = sys.argv[2].lower()
+
+        for u in DomainUser.load_files():
+            if not u.enabled:
+                continue
+
+            if search_term in u.search_string:
+                print(u.sam_account_name if u.sam_account_name else u.object_id)
+
+        sys.exit(0)
+
+    if sys.argv[1] == 'list-enabled-computers':
+        if len(sys.argv) == 2:
+            for c in DomainComputer.load_files():
+                if not c.enabled:
+                    continue
+
+                print(c.sam_account_name if c.sam_account_name else c.object_id)
+
+            sys.exit(0)
+
+        search_term = sys.argv[2].lower()
+
+        for c in DomainComputer.load_files():
+            if not c.enabled:
+                continue
+
+            if search_term in c.search_string:
+                print(c.sam_account_name if c.sam_account_name else c.object_id)
 
         sys.exit(0)
 
