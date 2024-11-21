@@ -12,3 +12,4 @@
 - `list-user-groups`
 - `list-computer-groups`
 - `list-group-members`
+- `list-kerberoastable`
