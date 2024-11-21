@@ -24,6 +24,7 @@ class DomainUser:
         self.last_logon = properties.get('lastlogon') or ''
         self.pwd_last_set = properties.get('pwdlastset') or ''
         self.pwd_never_expires = properties.get('pwdneverexpires') or False
+        self.dont_req_preauth = properties.get('dontreqpreauth') or False
         self.unix_password = properties.get('unixpassword') or ''
         self.display_name = properties.get('displayname') or ''
         self.description = properties.get('description') or ''

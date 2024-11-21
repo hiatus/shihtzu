@@ -15,3 +15,4 @@
 - `list-computer-groups`
 - `list-group-members`
 - `list-kerberoastable`
+- `list-asrep-roastable`

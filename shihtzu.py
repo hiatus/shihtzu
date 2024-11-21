@@ -20,6 +20,7 @@ shihtzu [command] [term]?
     list-computer-groups   [computer-search-term]  list group memberships of the first computer matching [computer-search-term]
     list-group-members     [group-search-term]     list all members of the first group matching [group-search-term]
     list-kerberoastable    [filter-term]?          list all domain users with SPNs set
+    list-asrep-roastable   [filter-term]?          list all domain users that don't require Kerberos pre-authentication
 
     - For convenience, search terms match object ids, samaccountnames, descriptions, SPNs, etc.
     - Listing prints `samaccountname`; if it's empty, it’s object ID will be printed instead.
@@ -192,6 +193,27 @@ def main():
         search_term = sys.argv[2].lower()
 
         for u in DomainUser.load_files():
+            if search_term in u.search_string and u.spns:
+                print(u.sam_account_name if u.sam_account_name else u.object_id)
+
+        sys.exit(0)
+
+    if sys.argv[1] == 'list-asrep-roastable':
+        if len(sys.argv) == 2:
+            for u in DomainUser.load_files():
+                if not u.dont_req_preauth:
+                    continue
+
+                print(u.sam_account_name if u.sam_account_name else u.object_id)
+
+            sys.exit(0)
+
+        search_term = sys.argv[2].lower()
+
+        for u in DomainUser.load_files():
+            if not u.dont_req_preauth:
+                continue
+
             if search_term in u.search_string and u.spns:
                 print(u.sam_account_name if u.sam_account_name else u.object_id)
 
