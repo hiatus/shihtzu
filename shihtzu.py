@@ -185,14 +185,19 @@ def main():
     if sys.argv[1] == 'list-kerberoastable':
         if len(sys.argv) == 2:
             for u in DomainUser.load_files():
-                if u.spns:
-                    print(u.sam_account_name if u.sam_account_name else u.object_id)
+                if not u.spns:
+                    continue
+
+                print(u.sam_account_name if u.sam_account_name else u.object_id)
 
             sys.exit(0)
 
         search_term = sys.argv[2].lower()
 
         for u in DomainUser.load_files():
+            if not u.spns:
+                continue
+
             if search_term in u.search_string and u.spns:
                 print(u.sam_account_name if u.sam_account_name else u.object_id)
 
