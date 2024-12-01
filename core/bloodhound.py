@@ -62,6 +62,7 @@ class DomainUser:
             f' Password Never Expires : {self.pwd_never_expires}\n'
             f'          Unix Password : {self.unix_password}\n'
             f'           Display Name : {self.display_name}\n'
+            f'            Description : {self.description}\n'
             f'                  Email : {self.email}\n'
             f"Service Principal Names : {', '.join(self.spns)}"
         )
