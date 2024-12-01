@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
 import json
 import os
 import re
@@ -20,15 +21,23 @@ class DomainUser:
         self.sam_account_name = properties.get('samaccountname') or ''
         self.distinguished_name = properties.get('distinguishedname') or ''
         self.spns = properties.get('serviceprincipalnames', [])
-        self.creation_date = properties.get('whencreated') or ''
-        self.last_logon = properties.get('lastlogon') or ''
-        self.pwd_last_set = properties.get('pwdlastset') or ''
         self.pwd_never_expires = properties.get('pwdneverexpires') or False
         self.dont_req_preauth = properties.get('dontreqpreauth') or False
         self.unix_password = properties.get('unixpassword') or ''
         self.display_name = properties.get('displayname') or ''
         self.description = properties.get('description') or ''
         self.email = properties.get('email') or ''
+
+        self.creation_date = self.last_logon = self.pwd_last_set = ''
+
+        if properties.get('whencreated'):
+            self.creation_date = datetime.fromtimestamp(properties.get('whencreated', 0))
+
+        if properties.get('lastlogon'):
+            self.last_logon = datetime.fromtimestamp(properties.get('lastlogon', 0))
+
+        if properties.get('pwdlastset'):
+            self.pwd_last_set = datetime.fromtimestamp(properties.get('pwdlastset', 0))
 
         self.search_string = '\n'.join([
             self.sam_account_name,
@@ -91,13 +100,21 @@ class DomainComputer:
         self.sam_account_name = properties.get('samaccountname') or ''
         self.distinguished_name = properties.get('distinguishedname') or ''
         self.spns = properties.get('serviceprincipalnames', [])
-        self.creation_date = properties.get('whencreated') or ''
-        self.last_logon = properties.get('lastlogon') or ''
-        self.pwd_last_set = properties.get('pwdlastset') or ''
         self.has_laps = properties.get('haslaps') or False
         self.name = properties.get('name') or ''
         self.description = properties.get('description') or ''
         self.operating_system = properties.get('operating_system') or ''
+
+        self.creation_date = self.last_logon = self.pwd_last_set = ''
+
+        if properties.get('whencreated'):
+            self.creation_date = datetime.fromtimestamp(properties.get('whencreated', 0))
+
+        if properties.get('lastlogon'):
+            self.last_logon = datetime.fromtimestamp(properties.get('lastlogon', 0))
+
+        if properties.get('pwdlastset'):
+            self.pwd_last_set = datetime.fromtimestamp(properties.get('pwdlastset', 0))
 
         self.search_string = '\n'.join([
             self.sam_account_name,
@@ -156,10 +173,14 @@ class DomainGroup:
         self.domain = properties.get('domain') or ''
         self.sam_account_name = properties.get('samaccountname') or ''
         self.distinguished_name = properties.get('distinguishedname') or ''
-        self.creation_date = properties.get('whencreated') or ''
         self.name = properties.get('name') or ''
         self.description = properties.get('description') or ''
         self.member_object_ids = [m['ObjectIdentifier'] for m in data.get('Members', [])]
+
+        self.creation_date = ''
+
+        if properties.get('whencreated'):
+            self.creation_date = datetime.fromtimestamp(properties.get('whencreated', 0))
 
         self.search_string = '\n'.join([
             self.sam_account_name,
