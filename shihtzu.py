@@ -14,8 +14,11 @@ shihtzu [command] [term]?
     list-enabled-users     [filter-term]?          list all enabled Active Directory users
     list-enabled-computers [filter-term]?          list all enabled Active Directory computers
     describe-user          [search-term]           show information on the first user matching [search-term]
+    describe-users         [search-term]           show information on all users matching [search-term]
     describe-computer      [search-term]           show information on the first computer matching [search-term]
+    describe-computers     [search-term]           show information on all computers matching [search-term]
     describe-group         [search-term]           show information on the first group matching [search-term]
+    describe-groups        [search-term]           show information on all groups matching [search-term]
     list-user-groups       [user-search-term]      list group memberships of the first user matching [user-search-term]
     list-computer-groups   [computer-search-term]  list group memberships of the first computer matching [computer-search-term]
     list-group-members     [group-search-term]     list all members of the first group matching [group-search-term]
@@ -31,6 +34,12 @@ def find_ad_object(ad_objects, search_term: str):
     for ado in ad_objects:
         if search_term in ado.search_string:
             return ado
+
+
+def find_ad_objects(ad_objects, search_term: str):
+    for ado in ad_objects:
+        if search_term in ado.search_string:
+            yield ado
 
 
 def main():
@@ -129,6 +138,12 @@ def main():
         print(user)
         sys.exit(0)
 
+    if sys.argv[1] == 'describe-users':
+        for u in find_ad_objects(DomainUser.load_files(), sys.argv[2].lower()):
+            print(f'\n{u}')
+
+        sys.exit(0)
+
     if sys.argv[1] == 'describe-computer':
         if (computer := find_ad_object(DomainComputer.load_files(), sys.argv[2].lower())) is None:
             print('[!] Computer not found')
@@ -137,12 +152,24 @@ def main():
         print(computer)
         sys.exit(0)
 
+    if sys.argv[1] == 'describe-computers':
+        for c in find_ad_objects(DomainComputer.load_files(), sys.argv[2].lower()):
+            print(f'\n{c}')
+
+        sys.exit(0)
+
     if sys.argv[1] == 'describe-group':
         if (group := find_ad_object(DomainGroup.load_files(), sys.argv[2].lower())) is None:
             print('[!] Group not found')
             sys.exit(1)
 
         print(group)
+        sys.exit(0)
+
+    if sys.argv[1] == 'describe-groups':
+        for g in find_ad_objects(DomainGroup.load_files(), sys.argv[2].lower()):
+            print(f'\n{g}')
+
         sys.exit(0)
 
     if sys.argv[1] == 'list-user-groups':
