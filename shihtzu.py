@@ -210,6 +210,9 @@ def main():
         for g in find_ad_objects(DomainGroup.load_files(), search_terms,
                                  max_matches=args.max_matches):
             for u in DomainUser.load_files():
+                if args.enabled and not u.enabled:
+                    continue
+
                 if g.contains(u.object_id):
                     print(
                         u.json if args.json else \
@@ -217,6 +220,9 @@ def main():
                     )
 
             for c in DomainComputer.load_files():
+                if args.enabled and not c.enabled:
+                    continue
+
                 if g.contains(c.object_id):
                     print(
                         c.json if args.json else \
