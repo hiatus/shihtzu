@@ -6,15 +6,16 @@ import os
 import re
 
 
-RE_BH_FILE_USERS = r'[0-9]{14}_users(_(0[1-9]|[1-9][0-9]))?\.json'
-RE_BH_FILE_COMPUTERS = r'[0-9]{14}_computers(_(0[1-9]|[1-9][0-9]))?\.json'
-RE_BH_FILE_GROUPS = r'[0-9]{14}_groups(_(0[1-9]|[1-9][0-9]))?\.json'
+RE_BH_FILE_USERS = r'.*_users(_(0[1-9]|[1-9][0-9]))?\.json'
+RE_BH_FILE_COMPUTERS = r'.*_computers(_(0[1-9]|[1-9][0-9]))?\.json'
+RE_BH_FILE_GROUPS = r'.*_groups(_(0[1-9]|[1-9][0-9]))?\.json'
 
 
 class DomainUser:
     def __init__(self, data: dict):
         properties = data['Properties']
 
+        self.json = json.dumps(data)
         self.object_id = data.get('ObjectIdentifier') or ''
         self.enabled = properties.get('enabled') or False
         self.domain = properties.get('domain') or ''
@@ -95,6 +96,7 @@ class DomainComputer:
     def __init__(self, data: dict):
         properties = data['Properties']
 
+        self.json = json.dumps(data)
         self.object_id = data.get('ObjectIdentifier') or ''
         self.enabled = properties.get('enabled') or False
         self.domain = properties.get('domain') or ''
@@ -170,6 +172,7 @@ class DomainGroup:
     def __init__(self, data: dict):
         properties = data['Properties']
 
+        self.json = json.dumps(data)
         self.object_id = data.get('ObjectIdentifier') or ''
         self.domain = properties.get('domain') or ''
         self.sam_account_name = properties.get('samaccountname') or ''

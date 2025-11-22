@@ -1,260 +1,278 @@
 #!/usr/bin/env python3
 
+import argparse
 import sys
 
 # Local imports
 from core.bloodhound import *
 
 
-BANNER = '''\
-shihtzu [command] [term]?
-    list-users             [filter-term]?          list all Active Directory users
-    list-computers         [filter-term]?          list all Active Directory computers
-    list-groups            [filter-term]?          list all Active Directory groups
-    list-enabled-users     [filter-term]?          list all enabled Active Directory users
-    list-enabled-computers [filter-term]?          list all enabled Active Directory computers
-    describe-user          [search-term]           show information on the first user matching [search-term]
-    describe-users         [search-term]           show information on all users matching [search-term]
-    describe-computer      [search-term]           show information on the first computer matching [search-term]
-    describe-computers     [search-term]           show information on all computers matching [search-term]
-    describe-group         [search-term]           show information on the first group matching [search-term]
-    describe-groups        [search-term]           show information on all groups matching [search-term]
-    list-user-groups       [user-search-term]      list group memberships of the first user matching [user-search-term]
-    list-computer-groups   [computer-search-term]  list group memberships of the first computer matching [computer-search-term]
-    list-group-members     [group-search-term]     list all members of the first group matching [group-search-term]
-    list-kerberoastable    [filter-term]?          list all domain users with SPNs set
-    list-asrep-roastable   [filter-term]?          list all domain users that don't require Kerberos pre-authentication
+HELP_EPILOG = '''\
+Queries:
+  list-users                 list users
+  list-computers             list computers
+  list-groups                list groups
+  describe-users             show information on users
+  describe-computers         show information on computers
+  describe-groups            show information on groups
+  list-members               list members of groups
+  list-user-memberships      list group memberships of users
+  list-computer-memberships  list group memberships of computers
+  list-kerberoastable        list domain users with SPNs set
+  list-asrep-roastable       list domain users that don't require Kerberos pre-authentication
 
-    - For convenience, search terms match object ids, samaccountnames, descriptions, SPNs, etc.
-    - Listing prints `samaccountname`; if it's empty, it’s object ID will be printed instead.
+Examples:
+  > shihtzu list-users
+  > shihtzu list-kerberoastable
+  > shihtzu -o describe-users elliot.alderson
+  > shihtzu -oej list-members "Domain Admins"
 '''
 
+AVAILABLE_QUERIES = (
+    'list-users',
+    'list-computers',
+    'list-groups',
+    'describe-users',
+    'describe-computers',
+    'describe-groups',
+    'list-members',
+    'list-user-memberships',
+    'list-computer-memberships',
+    'list-kerberoastable',
+    'list-asrep-roastable'
+)
 
-def find_ad_object(ad_objects, search_term: str):
-    for ado in ad_objects:
-        if search_term in ado.search_string:
-            return ado
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog='shihtzu',
+        description='A small CLI parser for Bloodhound-generated files.',
+        formatter_class=argparse.RawTextHelpFormatter,
+        allow_abbrev=False,
+        epilog=HELP_EPILOG
+    )
+
+    # Root-level parameters
+    parser.add_argument(
+        '-e', '--enabled',
+        action='store_true',
+        help="Only match enabled objects."
+    )
+
+    parser.add_argument(
+        '-j', '--json',
+        action='store_true',
+        help="Output objects in Bloodhound-compatible JSON."
+    )
+
+    parser.add_argument(
+        '-m', '--max-matches',
+        type=int,
+        default=0,
+        help="Stop after a specified number of matches (default: 0)."
+    )
+
+    parser.add_argument(
+        '-i', '--input-file',
+        help="Read search terms from a file."
+    )
+
+    parser.add_argument(
+        'query',
+        metavar='query',
+        help='The query to be performed.'
+    )
+
+    parser.add_argument(
+        'search_terms',
+        metavar='search-terms',
+        nargs='*',
+        help='The search terms for the query.'
+    )
+
+    args = parser.parse_args()
+
+    if args.query not in AVAILABLE_QUERIES:
+        parser.error(f'Invalid query: {args.query}')
+
+    if args.search_terms and args.input_file:
+        parser.error('Search terms must be given either via an input file or CLI arguments')
+
+    if args.input_file:
+        if not (os.path.isfile(args.input_file) and os.access(args.input_file, os.R_OK)):
+            parser.error(f'Cannot read search terms from file: {args.input_file}')
+
+    if args.max_matches < 0:
+        parser.error(f'Invalid value for `-m`: {args.max_matches}')
+
+    return args
 
 
-def find_ad_objects(ad_objects, search_term: str):
-    for ado in ad_objects:
-        if search_term in ado.search_string:
+def find_ad_objects(ad_objects, search_terms: list[str], enabled=False, max_matches=0):
+    matches = 0
+
+    if not search_terms:
+        for ado in ad_objects:
+            if enabled and not ado.enabled:
+                continue
+
             yield ado
+
+            if max_matches:
+                matches += 1
+
+                if matches > max_matches:
+                    return
+    else:
+        for ado in ad_objects:
+            if enabled and not ado.enabled:
+                continue
+
+            for st in search_terms:
+                if st not in ado.search_string:
+                    continue
+
+                yield ado
+
+                if max_matches:
+                    matches += 1
+
+                    if matches > max_matches:
+                        return
 
 
 def main():
-    if sys.argv[1] == 'list-users':
-        if len(sys.argv) == 2:
+    args = parse_args()
+    search_terms = [st.lower() for st in args.search_terms]
+
+    if args.input_file:
+        with open(args.input_file, 'rt') as fo:
+            search_terms = [l.strip().lower() for l in fo.readlines()]
+
+    if args.query == 'list-users':
+        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
+                                 max_matches=args.max_matches):
+            if args.enabled and not u.enabled:
+                continue
+
+            print(
+                u.json if args.json else u.sam_account_name if u.sam_account_name else u.object_id
+            )
+
+        sys.exit(0)
+
+    if args.query == 'list-computers':
+        for c in find_ad_objects(DomainComputer.load_files(), search_terms, enabled=args.enabled,
+                                 max_matches=args.max_matches):
+            if args.enabled and not c.enabled:
+                continue
+
+            print(
+                c.json if args.json else c.sam_account_name if c.sam_account_name else c.object_id
+            )
+
+        sys.exit(0)
+
+    if args.query == 'list-groups':
+        for g in find_ad_objects(DomainGroup.load_files(), search_terms, 
+                                 max_matches=args.max_matches):
+            print(
+                g.json if args.json else g.sam_account_name if g.sam_account_name else g.object_id
+            )
+
+        sys.exit(0)
+
+    if args.query == 'describe-users':
+        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
+                                 max_matches=args.max_matches):
+            print(u.json if args.json else f'\n{u}')
+
+        sys.exit(0)
+
+    if args.query == 'describe-computers':
+        for c in find_ad_objects(DomainComputer.load_files(), search_terms, enabled=args.enabled,
+                                 max_matches=args.max_matches):
+            print(c.json if args.json else f'\n{c}')
+
+        sys.exit(0)
+
+    if args.query == 'describe-groups':
+        for g in find_ad_objects(DomainGroup.load_files(), search_terms,
+                                 max_matches=args.max_matches):
+            print(g.json if args.json else f'\n{g}')
+
+        sys.exit(0)
+
+    if args.query == 'list-members':
+        for g in find_ad_objects(DomainGroup.load_files(), search_terms,
+                                 max_matches=args.max_matches):
             for u in DomainUser.load_files():
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
+                if g.contains(u.object_id):
+                    print(
+                        u.json if args.json else \
+                        u.sam_account_name if u.sam_account_name else u.object_id
+                    )
 
-            sys.exit(0)
-
-        search_term = sys.argv[2].lower()
-
-        for u in DomainUser.load_files():
-            if search_term in u.search_string:
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
-
-        sys.exit(0)
-
-    if sys.argv[1] == 'list-computers':
-        if len(sys.argv) == 2:
             for c in DomainComputer.load_files():
-                print(c.sam_account_name if c.sam_account_name else c.object_id)
-
-            sys.exit(0)
-
-        search_term = sys.argv[2].lower()
-
-        for c in DomainComputer.load_files():
-            if search_term in c.search_string:
-                print(c.sam_account_name if c.sam_account_name else c.object_id)
+                if g.contains(c.object_id):
+                    print(
+                        c.json if args.json else \
+                        c.sam_account_name if c.sam_account_name else c.object_id
+                    )
 
         sys.exit(0)
 
-    if sys.argv[1] == 'list-groups':
-        if len(sys.argv) == 2:
+    if args.query == 'list-user-memberships':
+        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
+                                 max_matches=args.max_matches):
             for g in DomainGroup.load_files():
-                print(g.sam_account_name if g.sam_account_name else g.object_id)
-
-            sys.exit(0)
-
-        search_term = sys.argv[2].lower()
-
-        for g in DomainGroup.load_files():
-            if search_term in g.search_string:
-                print(g.sam_account_name if g.sam_account_name else g.object_id)
+                if g.contains(u.object_id):
+                    print(
+                        g.json if args.json else \
+                        g.sam_account_name if g.sam_account_name else g.object_id
+                    )
 
         sys.exit(0)
 
-    if sys.argv[1] == 'list-enabled-users':
-        if len(sys.argv) == 2:
-            for u in DomainUser.load_files():
-                if not u.enabled:
-                    continue
-
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
-
-            sys.exit(0)
-
-        search_term = sys.argv[2].lower()
-
-        for u in DomainUser.load_files():
-            if not u.enabled:
-                continue
-
-            if search_term in u.search_string:
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
+    if args.query == 'list-computer-memberships':
+        for c in find_ad_objects(DomainComputer.load_files(), search_terms, enabled=args.enabled,
+                                 max_matches=args.max_matches):
+            for g in DomainGroup.load_files():
+                if g.contains(c.object_id):
+                    print(
+                        g.json if args.json else \
+                        g.sam_account_name if g.sam_account_name else g.object_id
+                    )
 
         sys.exit(0)
 
-    if sys.argv[1] == 'list-enabled-computers':
-        if len(sys.argv) == 2:
-            for c in DomainComputer.load_files():
-                if not c.enabled:
-                    continue
-
-                print(c.sam_account_name if c.sam_account_name else c.object_id)
-
-            sys.exit(0)
-
-        search_term = sys.argv[2].lower()
-
-        for c in DomainComputer.load_files():
-            if not c.enabled:
-                continue
-
-            if search_term in c.search_string:
-                print(c.sam_account_name if c.sam_account_name else c.object_id)
-
-        sys.exit(0)
-
-    if sys.argv[1] == 'describe-user':
-        if (user := find_ad_object(DomainUser.load_files(), sys.argv[2].lower())) is None:
-            print('[!] User not found')
-            sys.exit(1)
-
-        print(user)
-        sys.exit(0)
-
-    if sys.argv[1] == 'describe-users':
-        for u in find_ad_objects(DomainUser.load_files(), sys.argv[2].lower()):
-            print(f'\n{u}')
-
-        sys.exit(0)
-
-    if sys.argv[1] == 'describe-computer':
-        if (computer := find_ad_object(DomainComputer.load_files(), sys.argv[2].lower())) is None:
-            print('[!] Computer not found')
-            sys.exit(1)
-
-        print(computer)
-        sys.exit(0)
-
-    if sys.argv[1] == 'describe-computers':
-        for c in find_ad_objects(DomainComputer.load_files(), sys.argv[2].lower()):
-            print(f'\n{c}')
-
-        sys.exit(0)
-
-    if sys.argv[1] == 'describe-group':
-        if (group := find_ad_object(DomainGroup.load_files(), sys.argv[2].lower())) is None:
-            print('[!] Group not found')
-            sys.exit(1)
-
-        print(group)
-        sys.exit(0)
-
-    if sys.argv[1] == 'describe-groups':
-        for g in find_ad_objects(DomainGroup.load_files(), sys.argv[2].lower()):
-            print(f'\n{g}')
-
-        sys.exit(0)
-
-    if sys.argv[1] == 'list-user-groups':
-        if (user := find_ad_object(DomainUser.load_files(), sys.argv[2].lower())) is None:
-            print('[!] User not found')
-            sys.exit(1)
-
-        for g in DomainGroup.load_files():
-            if g.contains(user.object_id):
-                print(g.sam_account_name if g.sam_account_name else g.object_id)
-
-        sys.exit(0)
-
-    if sys.argv[1] == 'list-computer-groups':
-        if (computer := find_ad_object(DomainComputer.load_files(), sys.argv[2].lower())) is None:
-            print('[!] User not found')
-            sys.exit(1)
-
-        for g in DomainGroup.load_files():
-            if g.contains(computer.object_id):
-                print(g.sam_account_name if g.sam_account_name else g.object_id)
-
-        sys.exit(0)
-
-    if sys.argv[1] == 'list-group-members':
-        if (group := find_ad_object(DomainGroup.load_files(), sys.argv[2].lower())) is None:
-            print('[!] Group not found')
-            sys.exit(1)
-
-        for u in DomainUser.load_files():
-            if group.contains(u.object_id):
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
-
-        for c in DomainComputer.load_files():
-            if group.contains(c.object_id):
-                print(c.sam_account_name if c.sam_account_name else c.object_id)
-
-        sys.exit(0)
-
-    if sys.argv[1] == 'list-kerberoastable':
-        if len(sys.argv) == 2:
-            for u in DomainUser.load_files():
-                if not u.spns:
-                    continue
-
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
-
-            sys.exit(0)
-
-        search_term = sys.argv[2].lower()
-
-        for u in DomainUser.load_files():
+    if args.query == 'list-kerberoastable':
+        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
+                                 max_matches=args.max_matches):
             if not u.spns:
                 continue
 
-            if search_term in u.search_string and u.spns:
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
+            print(
+                u.json if args.json else u.sam_account_name if u.sam_account_name else u.object_id
+            )
 
         sys.exit(0)
 
-    if sys.argv[1] == 'list-asrep-roastable':
-        if len(sys.argv) == 2:
-            for u in DomainUser.load_files():
-                if not u.dont_req_preauth:
-                    continue
-
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
-
-            sys.exit(0)
-
-        search_term = sys.argv[2].lower()
-
-        for u in DomainUser.load_files():
+    if args.query == 'list-asrep-roastable':
+        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
+                                 max_matches=args.max_matches):
             if not u.dont_req_preauth:
                 continue
 
-            if search_term in u.search_string and u.spns:
-                print(u.sam_account_name if u.sam_account_name else u.object_id)
+            print(
+                u.json if args.json else u.sam_account_name if u.sam_account_name else u.object_id
+            )
 
         sys.exit(0)
-
 
 if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        print(f'{BANNER}\n\n{type(e).__name__}: {e}')
+        print(f'{type(e).__name__}: {e}')
         sys.exit(1)
