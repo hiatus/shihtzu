@@ -26,6 +26,7 @@ Examples:
   > shihtzu list-kerberoastable
   > shihtzu -o describe-users elliot.alderson
   > shihtzu -oej list-members "Domain Admins"
+  > shihtzu -o list-user-memberships elliot.alderson | shihtzu -f - describe-groups
 '''
 
 AVAILABLE_QUERIES = (
@@ -73,8 +74,8 @@ def parse_args():
     )
 
     parser.add_argument(
-        '-i', '--input-file',
-        help="Read search terms from a file."
+        '-f', '--input-file',
+        help='Read search terms from a file (use "-" for stdin).'
     )
 
     parser.add_argument(
@@ -98,7 +99,7 @@ def parse_args():
     if args.search_terms and args.input_file:
         parser.error('Search terms must be given either via an input file or CLI arguments')
 
-    if args.input_file:
+    if args.input_file and args.input_file != '-':
         if not (os.path.isfile(args.input_file) and os.access(args.input_file, os.R_OK)):
             parser.error(f'Cannot read search terms from file: {args.input_file}')
 
@@ -145,7 +146,9 @@ def main():
     args = parse_args()
     search_terms = [st.lower() for st in args.search_terms]
 
-    if args.input_file:
+    if args.input_file == '-':
+        search_terms = [l.strip().lower() for l in sys.stdin.readlines()]
+    elif args.input_file:
         with open(args.input_file, 'rt') as fo:
             search_terms = [l.strip().lower() for l in fo.readlines()]
 
