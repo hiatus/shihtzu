@@ -79,6 +79,12 @@ def parse_args():
     )
 
     parser.add_argument(
+        '-P', '--match-properties',
+        metavar='PROPERTIES',
+        help='Match objects using only specific properties (example: samaccountname,description).'
+    )
+
+    parser.add_argument(
         'query',
         metavar='query',
         help='The query to be performed.'
@@ -105,6 +111,18 @@ def parse_args():
 
     if args.max_matches < 0:
         parser.error(f'Invalid value for `-m`: {args.max_matches}')
+
+    if args.match_properties:
+        match_properties = [mp.strip() for mp in args.match_properties.split(',')]
+
+        allowed_properties = set(
+            DomainUser.SEARCH_PROPERTIES + DomainComputer.SEARCH_PROPERTIES + \
+            DomainGroup.SEARCH_PROPERTIES
+        )
+
+        for mp in match_properties:
+            if mp not in allowed_properties:
+                parser.error(f'Invalid Bloodhound property: {mp}')
 
     return args
 
@@ -144,6 +162,12 @@ def find_ad_objects(ad_objects, search_terms: list[str], enabled=False, max_matc
 
 def main():
     args = parse_args()
+
+    match_properties = []
+
+    if args.match_properties:
+        match_properties = [mp.strip() for mp in args.match_properties.split(',')]
+
     search_terms = [st.lower() for st in args.search_terms]
 
     if args.input_file == '-':
@@ -153,7 +177,12 @@ def main():
             search_terms = [l.strip().lower() for l in fo.readlines()]
 
     if args.query == 'list-users':
-        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
+        dus = None
+
+        if match_properties:
+            dus = DomainUser.load_files(search_properties=match_properties)
+
+        for u in find_ad_objects(dus or DomainUser.load_files(), search_terms, enabled=args.enabled,
                                  max_matches=args.max_matches):
             if args.enabled and not u.enabled:
                 continue
@@ -165,8 +194,13 @@ def main():
         sys.exit(0)
 
     if args.query == 'list-computers':
-        for c in find_ad_objects(DomainComputer.load_files(), search_terms, enabled=args.enabled,
-                                 max_matches=args.max_matches):
+        dcs = None
+
+        if match_properties:
+            dcs = DomainComputer.load_files(search_properties=match_properties)
+
+        for c in find_ad_objects(dcs or DomainComputer.load_files(), search_terms,
+                                 enabled=args.enabled, max_matches=args.max_matches):
             if args.enabled and not c.enabled:
                 continue
 
@@ -177,7 +211,12 @@ def main():
         sys.exit(0)
 
     if args.query == 'list-groups':
-        for g in find_ad_objects(DomainGroup.load_files(), search_terms, 
+        dgs = None
+
+        if match_properties:
+            dgs = DomainGroup.load_files(search_properties=match_properties)
+
+        for g in find_ad_objects(dgs or DomainGroup.load_files(), search_terms,
                                  max_matches=args.max_matches):
             print(
                 g.json if args.json else g.sam_account_name if g.sam_account_name else g.object_id
@@ -186,27 +225,47 @@ def main():
         sys.exit(0)
 
     if args.query == 'describe-users':
-        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
-                                 max_matches=args.max_matches):
+        dus = None
+
+        if match_properties:
+            dus = DomainUser.load_files(search_properties=match_properties)
+
+        for u in find_ad_objects(dus or DomainUser.load_files(), search_terms,
+                                 enabled=args.enabled, max_matches=args.max_matches):
             print(u.json if args.json else f'\n{u}')
 
         sys.exit(0)
 
     if args.query == 'describe-computers':
-        for c in find_ad_objects(DomainComputer.load_files(), search_terms, enabled=args.enabled,
-                                 max_matches=args.max_matches):
+        dcs = None
+
+        if match_properties:
+            dcs = DomainComputer.load_files(search_properties=match_properties)
+
+        for c in find_ad_objects(dcs or DomainComputer.load_files(), search_terms,
+                                 enabled=args.enabled, max_matches=args.max_matches):
             print(c.json if args.json else f'\n{c}')
 
         sys.exit(0)
 
     if args.query == 'describe-groups':
-        for g in find_ad_objects(DomainGroup.load_files(), search_terms,
+        dgs = None
+
+        if match_properties:
+            dgs = DomainGroup.load_files(search_properties=match_properties)
+
+        for g in find_ad_objects(dgs or DomainGroup.load_files(), search_terms,
                                  max_matches=args.max_matches):
             print(g.json if args.json else f'\n{g}')
 
         sys.exit(0)
 
     if args.query == 'list-members':
+        dgs = None
+
+        if match_properties:
+            dgs = DomainGroup.load_files(search_properties=match_properties)
+
         for g in find_ad_objects(DomainGroup.load_files(), search_terms,
                                  max_matches=args.max_matches):
             for u in DomainUser.load_files():
@@ -232,8 +291,13 @@ def main():
         sys.exit(0)
 
     if args.query == 'list-user-memberships':
-        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
-                                 max_matches=args.max_matches):
+        dus = None
+
+        if match_properties:
+            dus = DomainUser.load_files(search_properties=match_properties)
+
+        for u in find_ad_objects(dus or DomainUser.load_files(), search_terms,
+                                 enabled=args.enabled, max_matches=args.max_matches):
             for g in DomainGroup.load_files():
                 if g.contains(u.object_id):
                     print(
@@ -244,8 +308,13 @@ def main():
         sys.exit(0)
 
     if args.query == 'list-computer-memberships':
-        for c in find_ad_objects(DomainComputer.load_files(), search_terms, enabled=args.enabled,
-                                 max_matches=args.max_matches):
+        dcs = None
+
+        if match_properties:
+            dcs = DomainComputer.load_files(search_properties=match_properties)
+
+        for c in find_ad_objects(dcs or DomainComputer.load_files(), search_terms,
+                                 enabled=args.enabled, max_matches=args.max_matches):
             for g in DomainGroup.load_files():
                 if g.contains(c.object_id):
                     print(
@@ -256,6 +325,11 @@ def main():
         sys.exit(0)
 
     if args.query == 'list-kerberoastable':
+        dus = None
+
+        if match_properties:
+            dus = DomainUser.load_files(search_properties=match_properties)
+
         for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
                                  max_matches=args.max_matches):
             if not u.spns:
@@ -268,8 +342,13 @@ def main():
         sys.exit(0)
 
     if args.query == 'list-asrep-roastable':
-        for u in find_ad_objects(DomainUser.load_files(), search_terms, enabled=args.enabled,
-                                 max_matches=args.max_matches):
+        dus = None
+
+        if match_properties:
+            dus = DomainUser.load_files(search_properties=match_properties)
+
+        for u in find_ad_objects(dus or DomainUser.load_files(), search_terms,
+                                 enabled=args.enabled, max_matches=args.max_matches):
             if not u.dont_req_preauth:
                 continue
 
