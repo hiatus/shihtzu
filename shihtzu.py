@@ -67,7 +67,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        '-m', '--max-matches',
+        '-n', '--max-matches',
         type=int,
         default=0,
         help="Stop after a specified number of matches (default: 0)."
@@ -79,7 +79,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        '-P', '--match-properties',
+        '-m', '--match-properties',
         metavar='PROPERTIES',
         help='Match objects using only specific properties (example: samaccountname,description).'
     )
