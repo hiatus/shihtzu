@@ -140,7 +140,7 @@ def find_ad_objects(ad_objects, search_terms: list[str], enabled=False, max_matc
             if max_matches:
                 matches += 1
 
-                if matches > max_matches:
+                if matches >= max_matches:
                     return
     else:
         for ado in ad_objects:
@@ -156,7 +156,7 @@ def find_ad_objects(ad_objects, search_terms: list[str], enabled=False, max_matc
                 if max_matches:
                     matches += 1
 
-                    if matches > max_matches:
+                    if matches >= max_matches:
                         return
 
 
