@@ -169,15 +169,15 @@ def main():
     match_properties = []
 
     if args.match_properties:
-        match_properties = [mp.strip() for mp in args.match_properties.split(',')]
+        match_properties = [mp.strip() for mp in args.match_properties.split(',') if mp]
 
-    search_terms = [st.lower() for st in args.search_terms]
+    search_terms = [st.lower() for st in args.search_terms if st]
 
     if args.input_file == '-':
-        search_terms = [l.strip().lower() for l in sys.stdin.readlines()]
+        search_terms = [l.strip('\n').lower() for l in sys.stdin.readlines() if l.strip('\n')]
     elif args.input_file:
         with open(args.input_file, 'rt') as fo:
-            search_terms = [l.strip().lower() for l in fo.readlines()]
+            search_terms = [l.strip('\n').lower() for l in fo.readlines() if l.strip('\n')]
 
     if args.query in ('list-users', 'lu'):
         dus = None
