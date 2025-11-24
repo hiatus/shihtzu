@@ -9,38 +9,41 @@ from core.bloodhound import *
 
 HELP_EPILOG = '''\
 Queries:
-  list-users                 list users
-  list-computers             list computers
-  list-groups                list groups
-  describe-users             show information on users
-  describe-computers         show information on computers
-  describe-groups            show information on groups
-  list-members               list members of groups
-  list-user-memberships      list group memberships of users
-  list-computer-memberships  list group memberships of computers
-  list-kerberoastable        list domain users with SPNs set
-  list-asrep-roastable       list domain users that don't require Kerberos pre-authentication
+  list-users, lu                  list users
+  list-computers, lc              list computers
+  list-groups, lg                 list groups
+  describe-users, du              show information on users
+  describe-computers, dc          show information on computers
+  describe-groups, dg             show information on groups
+  list-group-members, lgm         list members of groups
+  list-user-memberships, lum      list group memberships of users
+  list-computer-memberships, lcm  list group memberships of computers
+  list-kerberoastable, lk         list domain users with SPNs set
+  list-asrep-roastable, la        list domain users that don't require Kerberos pre-authentication
 
 Examples:
-  > shihtzu list-users
-  > shihtzu list-kerberoastable
-  > shihtzu -o describe-users elliot.alderson
-  > shihtzu -oej list-members "Domain Admins"
-  > shihtzu -o list-user-memberships elliot.alderson | shihtzu -f - describe-groups
+  > List all Active Directory users:
+    shihtzu list-users
+  > List the first user whose samaccountname property matches "elliot.alderson":
+    shihtzu -n 1 -m samaccountname du elliot.alderson
+  > Dump the full Bloodhound JSON for enabled users that are members of the group "Domain Admins":
+    shihtzu -ej list-group-members "Domain Admins"
+  > Describe the groups of which users matching "alderson" are members:
+    shihtzu list-user-memberships alderson | shihtzu -f - describe-groups
 '''
 
 AVAILABLE_QUERIES = (
-    'list-users',
-    'list-computers',
-    'list-groups',
-    'describe-users',
-    'describe-computers',
-    'describe-groups',
-    'list-members',
-    'list-user-memberships',
-    'list-computer-memberships',
-    'list-kerberoastable',
-    'list-asrep-roastable'
+    'list-users', 'lu',
+    'list-computers', 'lc',
+    'list-groups', 'lg',
+    'describe-users', 'du',
+    'describe-computers', 'dc',
+    'describe-groups', 'dg',
+    'list-group-members', 'lgm',
+    'list-user-memberships', 'lum',
+    'list-computer-memberships', 'lcm',
+    'list-kerberoastable', 'lk',
+    'list-asrep-roastable' 'la'
 )
 
 
@@ -176,7 +179,7 @@ def main():
         with open(args.input_file, 'rt') as fo:
             search_terms = [l.strip().lower() for l in fo.readlines()]
 
-    if args.query == 'list-users':
+    if args.query in ('list-users', 'lu'):
         dus = None
 
         if match_properties:
@@ -193,7 +196,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'list-computers':
+    if args.query in ('list-computers', 'lc'):
         dcs = None
 
         if match_properties:
@@ -210,7 +213,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'list-groups':
+    if args.query in ('list-groups', 'lg'):
         dgs = None
 
         if match_properties:
@@ -224,7 +227,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'describe-users':
+    if args.query in ('describe-users', 'du'):
         dus = None
 
         if match_properties:
@@ -236,7 +239,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'describe-computers':
+    if args.query in ('describe-computers', 'dc'):
         dcs = None
 
         if match_properties:
@@ -248,7 +251,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'describe-groups':
+    if args.query in ('describe-groups', 'dg'):
         dgs = None
 
         if match_properties:
@@ -260,7 +263,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'list-members':
+    if args.query in ('list-group-members', 'lgm'):
         dgs = None
 
         if match_properties:
@@ -290,7 +293,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'list-user-memberships':
+    if args.query in ('list-user-memberships', 'lum'):
         dus = None
 
         if match_properties:
@@ -307,7 +310,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'list-computer-memberships':
+    if args.query in ('list-computer-memberships', 'lcm'):
         dcs = None
 
         if match_properties:
@@ -324,7 +327,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'list-kerberoastable':
+    if args.query in ('list-kerberoastable', 'lk'):
         dus = None
 
         if match_properties:
@@ -341,7 +344,7 @@ def main():
 
         sys.exit(0)
 
-    if args.query == 'list-asrep-roastable':
+    if args.query in ('list-asrep-roastable', 'la'):
         dus = None
 
         if match_properties:
